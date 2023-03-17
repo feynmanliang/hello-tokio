@@ -12,7 +12,7 @@ async fn main() -> io::Result<()> {
             let (mut rd, mut wr) = socket.split();
 
             if io::copy(&mut rd, &mut wr).await.is_err() {
-                eprint!("failed to copy");
+                eprintln!("failed to copy");
             }
         });
     }
