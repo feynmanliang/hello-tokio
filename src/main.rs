@@ -15,12 +15,28 @@ async fn main() {
 }
 
 async fn process(socket: tokio::net::TcpStream) {
+    use mini_redis::Command::{self, Get, Set};
+    use std::collections::HashMap;
+
+    let mut db = HashMap::new();
+
     let mut connection = Connection::new(socket);
 
-    if let Some(frame) = connection.read_frame().await.unwrap() {
+    while let Some(frame) = connection.read_frame().await.unwrap() {
         println!("GOT: {:?}", frame);
 
-        let response = Frame::Error("unimplemented".to_string());
+        let response = match Command::from_frame(frame).unwrap() {
+            Set(cmd) => {
+                db.insert(cmd.key().to_string(), cmd.value().to_vec());
+                Frame::Simple("OK".to_string())
+            }
+            Get(cmd) => match db.get(cmd.key()) {
+                Some(value) => Frame::Bulk(value.clone().into()),
+                None => Frame::Null,
+            },
+            cmd => unimplemented!("unimplemented command: {:?}", cmd),
+        };
+
         connection.write_frame(&response).await.unwrap();
     }
 }
